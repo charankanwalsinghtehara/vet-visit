@@ -17,7 +17,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       const { password, confirmPassword, ...profile } = values;
-      await api.post("/auth/register/", profile);
+      await api.post("/auth/register/", { ...profile, password });
       await login({ username: values.username, password });
       navigate("/", { replace: true });
     } catch (requestError) {

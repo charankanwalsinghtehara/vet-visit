@@ -276,12 +276,32 @@ class ClinicApiTests(APITestCase):
 
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data["status"], Invoice.Status.OPEN)
+        self.assertEqual(created.data["currency"], "inr")
         self.client.force_authenticate(self.owner)
 
         listed = self.client.get("/api/invoices/")
 
         self.assertEqual(listed.status_code, 200)
         self.assertEqual([item["id"] for item in listed.data["results"]], [created.data["id"]])
+
+    def test_staff_cannot_issue_usd_invoices(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            "/api/invoices/",
+            {
+                "clinic": self.clinic.id,
+                "owner": self.owner.id,
+                "pet": self.pet.id,
+                "description": "Wellness exam",
+                "amount_cents": 8500,
+                "currency": "usd",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("INR", str(response.data["currency"]))
 
     @override_settings(STRIPE_SECRET_KEY="")
     def test_checkout_is_unavailable_without_stripe_configuration(self):

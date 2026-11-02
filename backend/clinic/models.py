@@ -130,7 +130,7 @@ class Invoice(models.Model):
     )
     description = models.CharField(max_length=240)
     amount_cents = models.PositiveIntegerField(validators=[MinValueValidator(50)])
-    currency = models.CharField(max_length=3, default="usd")
+    currency = models.CharField(max_length=3, default="inr")
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN)
     stripe_checkout_session_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

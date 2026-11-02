@@ -197,9 +197,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
         return obj.owner.get_full_name() or obj.owner.username
 
     def validate_currency(self, value):
-        if value.lower() != "usd":
-            raise serializers.ValidationError("Only USD invoices are supported in this prototype.")
-        return "usd"
+        if value.lower() != "inr":
+            raise serializers.ValidationError("Only INR invoices are supported in this prototype.")
+        return "inr"
 
     def validate(self, attrs):
         request = self.context["request"]

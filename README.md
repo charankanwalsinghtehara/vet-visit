@@ -20,11 +20,26 @@ Versions are pinned in `backend/requirements.txt` and `frontend/package.json`.
 4. Create an administrative login with `docker compose exec backend python manage.py createsuperuser`.
 5. Sign in to [http://localhost:8000/admin/](http://localhost:8000/admin/). Create a clinic, then edit the superuser and assign the `admin` role and clinic. Create veterinarian accounts and assign each to that clinic. Pet owners can register from the client.
 
+### Demo accounts and sample data
+
+After migrations, run `python manage.py seed_demo` from the backend directory, or `docker compose exec backend python manage.py seed_demo` with Compose. The command creates fictional clinics in Bengaluru and Pune, demo users, pets, appointments, medical records, and INR invoices. It is idempotent and only runs when Django debug mode is enabled. All clinical details are fictional examples, not veterinary advice.
+
+The demo accounts share this local-only password: `VetCareDemo2026!`
+
+| Role | Username |
+| --- | --- |
+| Pet owner | `demo-owner` |
+| Veterinarian | `demo-vet` |
+| Clinic administrator | `demo-admin` |
+| Receptionist | `demo-receptionist` |
+
+Change or remove these accounts before exposing a development environment to others. The seed command refuses to run when `DEBUG` is disabled.
+
 ### AI and payments
 
 Set `OPENAI_API_KEY` to enable non-emergency symptom guidance and clinician note drafting. Requests are sent to the configured OpenAI model. Emergency phrase screening runs locally before an AI call and escalates to an emergency clinic; this assistant does not diagnose or replace veterinary care. Do not send information to the AI provider unless your clinic has reviewed its privacy terms and obtained any required consent.
 
-Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to enable Stripe-hosted card checkout. In Stripe test mode, forward `checkout.session.completed` events to `http://localhost:8000/api/billing/stripe/webhook/` (for example, with Stripe CLI), then place the webhook signing secret in `.env`. Invoice amounts are fixed server-side in USD cents; invoice status changes to paid only after a verified Stripe webhook. No card details are stored by VetCare. `APP_BASE_URL` controls checkout return links (`http://localhost:8080` for Compose, or `http://localhost:5173` for Vite).
+Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to enable Stripe-hosted card checkout. In Stripe test mode, forward `checkout.session.completed` events to `http://localhost:8000/api/billing/stripe/webhook/` (for example, with Stripe CLI), then place the webhook signing secret in `.env`. New invoice amounts are denominated in Indian rupees (INR) and stored in paise; invoice status changes to paid only after a verified Stripe webhook. Existing invoices retain their originally recorded currency. No card details are stored by VetCare. `APP_BASE_URL` controls checkout return links (`http://localhost:8080` for Compose, or `http://localhost:5173` for Vite).
 
 Without provider credentials, emergency phrase escalation and invoice management remain available, while AI replies and card checkout display a not-configured state. No fake diagnoses or payment confirmations are generated.
 

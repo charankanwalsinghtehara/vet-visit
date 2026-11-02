@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, CreditCard, FileText, LockKeyhole, Plus, RefreshCw } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, CreditCard, FileText, LockKeyhole, Plus, RefreshCw, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { api, getErrorMessage } from "../api";
 import { useAuth } from "../auth/AuthContext";
 
 function formatMoney(cents, currency) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
 }
 
 export default function Payments() {
@@ -19,6 +19,7 @@ export default function Payments() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
+  const [paymentConfirmation, setPaymentConfirmation] = useState(null);
   const canIssue = ["admin", "receptionist"].includes(user.role);
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
 
@@ -64,9 +65,13 @@ export default function Payments() {
     setError("");
     try {
       if (demoMode && !stripeConfigured) {
-        await api.post(`/invoices/${invoice.id}/demo-pay/`);
+        const { data } = await api.post(`/invoices/${invoice.id}/demo-pay/`);
+        setNotice("");
+        setPaymentConfirmation({
+          description: data.description,
+          amount: formatMoney(data.amount_cents, data.currency),
+        });
         await loadInvoices();
-        setNotice("Demo payment recorded. No money was charged and Stripe did not confirm this invoice.");
         return;
       }
       const { data } = await api.post(`/invoices/${invoice.id}/checkout/`);
@@ -84,6 +89,17 @@ export default function Payments() {
       </header>
       {notice && <div role="status" className="mb-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
+      {paymentConfirmation && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" onClick={() => setPaymentConfirmation(null)}>
+        <section role="dialog" aria-modal="true" aria-labelledby="demo-payment-title" className="relative w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.key === "Escape" && setPaymentConfirmation(null)}>
+          <button type="button" aria-label="Close confirmation" onClick={() => setPaymentConfirmation(null)} className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button>
+          <CheckCircle2 className="mx-auto text-teal-600" size={54} />
+          <h2 id="demo-payment-title" className="mt-4 text-2xl font-bold text-ink">Demo payment successful</h2>
+          <p className="mt-2 text-lg font-semibold text-slate-700">{paymentConfirmation.amount}</p>
+          <p className="mt-1 text-sm text-slate-500">{paymentConfirmation.description}</p>
+          <p className="mt-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">This is a demo only. No money was charged and Stripe did not process this payment.</p>
+          <button type="button" autoFocus onClick={() => setPaymentConfirmation(null)} className="btn-primary mt-6 w-full">Done</button>
+        </section>
+      </div>}
       <section className={`mb-6 flex items-start gap-3 rounded-xl border p-4 ${stripeConfigured ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
         <LockKeyhole size={18} className={stripeConfigured ? "mt-0.5 text-emerald-700" : "mt-0.5 text-amber-700"} />
         <div><p className="text-sm font-semibold text-ink">{stripeConfigured ? "Stripe secure checkout is connected" : demoMode ? "Demo payment simulator is active" : "Online checkout is not configured"}</p><p className="mt-1 text-sm text-slate-600">{stripeConfigured ? "Card details are entered on Stripe-hosted checkout. VetCare never stores card numbers." : demoMode ? "You can test the invoice flow here. Simulated payments do not charge a card and are not real payment confirmations." : "Add Stripe test keys and a webhook secret to enable card payments. Invoice management remains available."}</p></div>
@@ -91,7 +107,7 @@ export default function Payments() {
       {showForm && canIssue && <form onSubmit={handleSubmit(createInvoice)} className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:grid-cols-2 lg:grid-cols-4">
         <label className="field-label">Pet owner<select className="input mt-2" {...register("owner", { required: true })}><option value="">Select owner</option>{owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.first_name} {owner.last_name} · {owner.email}</option>)}</select></label>
         <label className="field-label">Pet<select className="input mt-2" {...register("pet", { required: true })}><option value="">Select pet</option>{pets.map((pet) => <option key={pet.id} value={pet.id}>{pet.name}</option>)}</select></label>
-        <label className="field-label">Amount (USD)<input className="input mt-2" type="number" min="0.50" step="0.01" {...register("amount", { required: true, min: 0.5 })} /></label>
+        <label className="field-label">Amount (INR)<input className="input mt-2" type="number" min="0.50" step="0.01" {...register("amount", { required: true, min: 0.5 })} /></label>
         <label className="field-label">Description<input className="input mt-2" maxLength={240} {...register("description", { required: true })} /></label>
         <button disabled={isSubmitting} className="btn-primary sm:col-span-2 lg:col-span-4">{isSubmitting ? "Creating…" : "Issue invoice"}</button>
       </form>}
@@ -102,7 +118,7 @@ export default function Payments() {
           <div className="flex items-center gap-4"><p className="font-bold tabular-nums text-ink">{formatMoney(invoice.amount_cents, invoice.currency)}</p>{!canIssue && invoice.status === "open" && <button className="btn-primary" disabled={!stripeConfigured && !demoMode} onClick={() => startPayment(invoice)}><CreditCard size={16} />{stripeConfigured ? "Pay invoice" : "Simulate payment"}</button>}{["paid", "demo_paid"].includes(invoice.status) && <span className="text-xs text-slate-500">{invoice.status === "demo_paid" ? "Simulation only" : "Paid"} {invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString() : ""}</span>}</div>
         </article>)}</div> : <div className="py-16 text-center"><FileText className="mx-auto text-slate-300" size={28} /><p className="mt-3 font-semibold text-ink">No invoices yet</p><p className="mt-1 text-sm text-slate-500">{canIssue ? "Invoices you issue will appear here." : "Your clinic invoices will appear here."}</p></div>}
       </div>
-      {canIssue && <p className="mt-4 flex items-center gap-2 text-xs leading-5 text-slate-500"><ArrowUpRight size={14} />Invoice amounts are recorded in USD cents and cannot be edited after issue.</p>}
+      {canIssue && <p className="mt-4 flex items-center gap-2 text-xs leading-5 text-slate-500"><ArrowUpRight size={14} />New invoice amounts are recorded in INR paise and cannot be edited after issue.</p>}
     </div>
   );
 }
