@@ -36,6 +36,13 @@ REFRESH_COOKIE = "vet_refresh"
 COOKIE_SECURE = not settings.DEBUG
 
 
+class APIHomeView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"status": "ok", "api": "/api/"})
+
+
 def set_refresh_cookie(response, token):
     response.set_cookie(
         REFRESH_COOKIE,

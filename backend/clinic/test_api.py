@@ -32,6 +32,12 @@ class ClinicApiTests(APITestCase):
             clinic=self.other_clinic, owner=self.other_owner, name="Nori", species="Dog"
         )
 
+    def test_api_home_returns_a_success_response(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {"status": "ok", "api": "/api/"})
+
     def test_owner_pet_list_is_limited_to_the_authenticated_owner(self):
         self.client.force_authenticate(self.owner)
 

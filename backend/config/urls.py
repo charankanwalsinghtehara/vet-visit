@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from clinic.views import (
+    APIHomeView,
     AINoteDraftView,
     AIStatusView,
     AppointmentViewSet,
@@ -28,6 +29,7 @@ router.register("records", MedicalRecordViewSet, basename="record")
 router.register("invoices", InvoiceViewSet, basename="invoice")
 
 urlpatterns = [
+    path("", APIHomeView.as_view(), name="home"),
     path("admin/", admin.site.urls),
     path("api/auth/register/", RegisterView.as_view(), name="register"),
     path("api/auth/login/", LoginView.as_view(), name="login"),
