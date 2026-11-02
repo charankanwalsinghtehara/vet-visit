@@ -105,12 +105,9 @@ The AI tools are decision-support only and are not a substitute for a veterinari
 
 ### Deploy to Render
 
-Deploy the backend as a native Python web service with the repository root directory set to `backend`:
+The repository includes a Render Blueprint in `render.yaml` for a native Python API and static frontend. In Render, create a Blueprint Instance from this repository and apply the configuration. The backend start command runs migrations before Gunicorn, and the Blueprint generates a Django secret. If Render reports existing services with the same names, update those services to match `render.yaml` rather than creating duplicate services.
 
-- Build command: `pip install -r requirements.txt`
-- Start command: `python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3`
-
-Configure `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, and `CORS_ALLOWED_ORIGINS=https://vet-visit.onrender.com`. Add the frontend origin to `CSRF_TRUSTED_ORIGINS` as well. Remove `DATABASE_URL` from the backend service environment; this setup uses SQLite and does not need a managed database service. Run migrations as part of the service start command so the database schema is ready before the service receives requests. SQLite starts as a separate, empty database and does not copy data from an existing PostgreSQL service, so export any data you need before removing that service.
+Remove `DATABASE_URL` from the backend service environment; this setup uses SQLite and does not need a managed database service. SQLite starts as a separate, empty database and does not copy data from an existing PostgreSQL service, so export any data you need before removing that service.
 
 SQLite is intended here for temporary, small-scale use. Render's local filesystem is ephemeral by default, so the database file can be lost when the service restarts or is redeployed. To retain it, attach a persistent disk mounted at `/var/data` and set `SQLITE_PATH=/var/data/db.sqlite3`. SQLite also serializes writes and does not provide the row-locking guarantees needed for concurrent appointment booking; move to a managed production database before relying on concurrent use or important data.
 
