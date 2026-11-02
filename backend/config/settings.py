@@ -97,17 +97,33 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+
 CORS_ALLOWED_ORIGINS = [
-    origin for origin in os.environ.get(
-        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174"
-    ).split(",") if origin
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://localhost:5174,https://vet-visit.onrender.com"
+    ).split(",")
+    if origin.strip()
 ]
+
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost:5173,http://localhost:5174,https://vet-visit.onrender.com"
+    ).split(",")
+    if origin.strip()
+]
+
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
 
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
