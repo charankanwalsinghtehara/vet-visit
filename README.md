@@ -12,17 +12,37 @@ A React/Vite client and Django REST API for a multi-clinic veterinary care workf
 
 Versions are pinned in `backend/requirements.txt` and `frontend/package.json`.
 
-## Run locally with Docker Compose
+## Run locally
 
-1. Copy `.env.example` to `.env` and replace both placeholder secrets. For example, generate `DJANGO_SECRET_KEY` with `python -c "import secrets; print(secrets.token_urlsafe(64))"`.
-2. Start the application with `docker compose up --build`.
-3. Open the client at [http://localhost:8080](http://localhost:8080). The API is at [http://localhost:8000/api](http://localhost:8000/api).
-4. Create an administrative login with `docker compose exec backend python manage.py createsuperuser`.
-5. Sign in to [http://localhost:8000/admin/](http://localhost:8000/admin/). Create a clinic, then edit the superuser and assign the `admin` role and clinic. Create veterinarian accounts and assign each to that clinic. Pet owners can register from the client.
+Backend:
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:DJANGO_SECRET_KEY = "local-only-change-me"
+$env:DJANGO_DEBUG = "true"
+python manage.py migrate
+python manage.py runserver
+```
+
+Frontend, in a separate terminal:
+
+```powershell
+cd frontend
+npm ci
+$env:VITE_API_URL = "http://localhost:8000/api"
+npm run dev
+```
+
+Open the frontend at [http://localhost:5173](http://localhost:5173). The API is at [http://localhost:8000/api](http://localhost:8000/api). For local development, the backend uses SQLite by default; set `DATABASE_URL` to use PostgreSQL instead.
+
+Create an administrative login with `python manage.py createsuperuser` from the backend directory. Sign in to [http://localhost:8000/admin/](http://localhost:8000/admin/). Create a clinic, then edit the superuser and assign the `admin` role and clinic. Create veterinarian accounts and assign each to that clinic. Pet owners can register from the client.
 
 ### Demo accounts and sample data
 
-After migrations, run `python manage.py seed_demo` from the backend directory, or `docker compose exec backend python manage.py seed_demo` with Compose. The command creates fictional clinics in Bengaluru and Pune, demo users, pets, appointments, medical records, and INR invoices. It is idempotent and only runs when Django debug mode is enabled. All clinical details are fictional examples, not veterinary advice.
+After migrations, run `python manage.py seed_demo` from the backend directory. The command creates fictional clinics in Bengaluru and Pune, demo users, pets, appointments, medical records, and INR invoices. It is idempotent and only runs when Django debug mode is enabled. All clinical details are fictional examples, not veterinary advice.
 
 The demo accounts share this local-only password: `VetCareDemo2026!`
 
@@ -39,23 +59,20 @@ Change or remove these accounts before exposing a development environment to oth
 
 Set `OPENAI_API_KEY` to enable non-emergency symptom guidance and clinician note drafting. Requests are sent to the configured OpenAI model. Emergency phrase screening runs locally before an AI call and escalates to an emergency clinic; this assistant does not diagnose or replace veterinary care. Do not send information to the AI provider unless your clinic has reviewed its privacy terms and obtained any required consent.
 
-Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to enable Stripe-hosted card checkout. In Stripe test mode, forward `checkout.session.completed` events to `http://localhost:8000/api/billing/stripe/webhook/` (for example, with Stripe CLI), then place the webhook signing secret in `.env`. New invoice amounts are denominated in Indian rupees (INR) and stored in paise; invoice status changes to paid only after a verified Stripe webhook. Existing invoices retain their originally recorded currency. No card details are stored by VetCare. `APP_BASE_URL` controls checkout return links (`http://localhost:8080` for Compose, or `http://localhost:5173` for Vite).
+Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to enable Stripe-hosted card checkout. In Stripe test mode, forward `checkout.session.completed` events to `http://localhost:8000/api/billing/stripe/webhook/` (for example, with Stripe CLI), then configure the webhook signing secret in the backend environment. New invoice amounts are denominated in Indian rupees (INR) and stored in paise; invoice status changes to paid only after a verified Stripe webhook. Existing invoices retain their originally recorded currency. No card details are stored by VetCare. `APP_BASE_URL` controls checkout return links (use `http://localhost:5173` for the local Vite frontend).
 
 Without provider credentials, emergency phrase escalation and invoice management remain available, while AI replies and card checkout display a not-configured state. No fake diagnoses or payment confirmations are generated.
 
 In debug mode, `PAYMENTS_DEMO_MODE=true` enables a no-charge payment simulation for walkthroughs. It records a separate `demo_paid` status and never claims Stripe confirmed a payment. Keep it disabled outside local development. If OpenAI is not configured, routine symptom submissions receive clearly labeled conservative offline guidance; this is not an AI assessment and cannot rule out urgent illness.
 
-In local development, email is written to the backend container log. To use SMTP, configure `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, and `EMAIL_USE_TLS` in `.env`.
+In local development, email is written to the backend terminal. To use SMTP, configure `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, and `EMAIL_USE_TLS` in the backend environment.
 
-## Run checks without Docker
+## Run checks
 
-Backend (PostgreSQL recommended):
+Backend (PostgreSQL recommended for tests that exercise database locking):
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
 $env:DJANGO_SECRET_KEY = "local-only-change-me"
 $env:DJANGO_DEBUG = "true"
 python manage.py migrate
@@ -70,7 +87,7 @@ npm install
 npm run build
 ```
 
-Set `VITE_API_URL` when the API is not at `http://localhost:8000/api`.
+Set `VITE_API_URL` when the API is not at `http://localhost:8000/api`. The value may be the backend origin or the full `/api` URL.
 
 ## API outline
 
@@ -86,4 +103,15 @@ Responses use page-number pagination (`count`, `next`, `previous`, `results`). L
 
 The AI tools are decision-support only and are not a substitute for a veterinarian. Payment settlement depends on Stripe credentials and webhook delivery. Prescriptions, vaccinations, inventory, advanced audit history, password reset, notification schedules, clinic availability calendars, and retrieval-augmented veterinary references remain outside this prototype.
 
-The Compose setup is for local development. The backend container applies database migrations before starting Gunicorn. For the frontend deployment, set `VITE_API_URL` to the backend URL with `/api` appended (for example, `https://vet-visit-api.onrender.com/api`); the client also appends `/api` if the configured URL omits it. Before production deployment, use a generated secret, `DEBUG=false`, HTTPS, restricted host/CORS settings, a managed PostgreSQL/Redis service, static asset hosting, backup/restore procedures, monitoring, migrations reviewed and committed, and a security/privacy review. Do not use real patient data until the deployment and applicable privacy requirements have been reviewed.
+### Deploy to Render
+
+Deploy the backend as a native Python web service with the repository root directory set to `backend`:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3`
+
+Configure `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DATABASE_URL` for a managed PostgreSQL database, and `CORS_ALLOWED_ORIGINS=https://vet-visit.onrender.com`. Add the frontend origin to `CSRF_TRUSTED_ORIGINS` as well. Run migrations as part of the service start command so a newly deployed service has its database schema before it receives requests.
+
+Deploy the frontend as a Render Static Site with the repository root directory set to `frontend`, build command `npm ci && npm run build`, and publish directory `dist`. Set `VITE_API_URL` to the backend URL, for example `https://vet-visit-api.onrender.com/api`. Rebuild the static site after changing this variable.
+
+Before production deployment, use a generated secret, HTTPS, restricted host/CORS settings, managed PostgreSQL/Redis services, backup/restore procedures, monitoring, migrations reviewed and committed, and a security/privacy review. Do not use real patient data until the deployment and applicable privacy requirements have been reviewed.
