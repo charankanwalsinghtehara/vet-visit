@@ -2,8 +2,9 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.utils import timezone
+from django.db import connection
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .models import Appointment, Clinic, Invoice, MedicalRecord, Pet, User
@@ -37,6 +38,9 @@ class ClinicApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"status": "ok", "api": "/api/"})
+
+    def test_database_uses_sqlite(self):
+        self.assertEqual(connection.vendor, "sqlite")
 
     def test_owner_pet_list_is_limited_to_the_authenticated_owner(self):
         self.client.force_authenticate(self.owner)

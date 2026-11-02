@@ -5,7 +5,7 @@ A React/Vite client and Django REST API for a multi-clinic veterinary care workf
 ## Stack
 
 - Python 3.12+, Django 5.2 LTS, Django REST Framework 3.16
-- PostgreSQL 16, Redis 7, Celery 5
+- SQLite for the small-scale database, Redis 7 and Celery 5 for optional background jobs
 - Node.js 22, React 18, React Router 7, Vite 6, Tailwind CSS 4
 - Axios, React Router, React Hook Form, Recharts, Lucide React
 - OpenAI Python SDK for optional AI-assisted workflows; Stripe Python SDK for hosted checkout
@@ -36,7 +36,7 @@ $env:VITE_API_URL = "http://localhost:8000/api"
 npm run dev
 ```
 
-Open the frontend at [http://localhost:5173](http://localhost:5173). The API is at [http://localhost:8000/api](http://localhost:8000/api). For local development, the backend uses SQLite by default; set `DATABASE_URL` to use PostgreSQL instead.
+Open the frontend at [http://localhost:5173](http://localhost:5173). The API is at [http://localhost:8000/api](http://localhost:8000/api). The backend stores data in a local SQLite database at `backend/db.sqlite3` by default. Set `SQLITE_PATH` to choose another database file location.
 
 Create an administrative login with `python manage.py createsuperuser` from the backend directory. Sign in to [http://localhost:8000/admin/](http://localhost:8000/admin/). Create a clinic, then edit the superuser and assign the `admin` role and clinic. Create veterinarian accounts and assign each to that clinic. Pet owners can register from the client.
 
@@ -69,7 +69,7 @@ In local development, email is written to the backend terminal. To use SMTP, con
 
 ## Run checks
 
-Backend (PostgreSQL recommended for tests that exercise database locking):
+Backend (uses SQLite):
 
 ```powershell
 cd backend
@@ -110,8 +110,10 @@ Deploy the backend as a native Python web service with the repository root direc
 - Build command: `pip install -r requirements.txt`
 - Start command: `python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3`
 
-Configure `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DATABASE_URL` for a managed PostgreSQL database, and `CORS_ALLOWED_ORIGINS=https://vet-visit.onrender.com`. Add the frontend origin to `CSRF_TRUSTED_ORIGINS` as well. Run migrations as part of the service start command so a newly deployed service has its database schema before it receives requests.
+Configure `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, and `CORS_ALLOWED_ORIGINS=https://vet-visit.onrender.com`. Add the frontend origin to `CSRF_TRUSTED_ORIGINS` as well. Remove `DATABASE_URL` from the backend service environment; this setup uses SQLite and does not need a managed database service. Run migrations as part of the service start command so the database schema is ready before the service receives requests. SQLite starts as a separate, empty database and does not copy data from an existing PostgreSQL service, so export any data you need before removing that service.
+
+SQLite is intended here for temporary, small-scale use. Render's local filesystem is ephemeral by default, so the database file can be lost when the service restarts or is redeployed. To retain it, attach a persistent disk mounted at `/var/data` and set `SQLITE_PATH=/var/data/db.sqlite3`. SQLite also serializes writes and does not provide the row-locking guarantees needed for concurrent appointment booking; move to a managed production database before relying on concurrent use or important data.
 
 Deploy the frontend as a Render Static Site with the repository root directory set to `frontend`, build command `npm ci && npm run build`, and publish directory `dist`. Set `VITE_API_URL` to the backend URL, for example `https://vet-visit-api.onrender.com/api`. Rebuild the static site after changing this variable.
 
-Before production deployment, use a generated secret, HTTPS, restricted host/CORS settings, managed PostgreSQL/Redis services, backup/restore procedures, monitoring, migrations reviewed and committed, and a security/privacy review. Do not use real patient data until the deployment and applicable privacy requirements have been reviewed.
+Before production deployment, use a generated secret, HTTPS, restricted host/CORS settings, managed production database and Redis services, backup/restore procedures, monitoring, migrations reviewed and committed, and a security/privacy review. Do not use real patient data until the deployment and applicable privacy requirements have been reviewed.
