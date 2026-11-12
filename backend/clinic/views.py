@@ -1,5 +1,6 @@
 from datetime import timedelta
 import json
+import logging
 import re
 
 from django.conf import settings
@@ -31,6 +32,8 @@ from .serializers import (
     UserSerializer,
     VeterinarianSummarySerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 REFRESH_COOKIE = "vet_refresh"
 COOKIE_SECURE = not settings.DEBUG
@@ -213,7 +216,13 @@ class TriageView(APIView):
                 "red_flags": [str(flag)[:160] for flag in red_flags[:5]],
                 "source": "ai-assisted-intake",
             })
-        except (OpenAIError, ValueError, TypeError, IndexError, json.JSONDecodeError):
+        except (OpenAIError, ValueError, TypeError, IndexError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "OpenAI triage failed: %s (status=%s, code=%s)",
+                type(exc).__name__,
+                getattr(exc, "status_code", None),
+                getattr(exc, "code", None),
+            )
             return Response(
                 {"detail": "The AI assistant is temporarily unavailable. Contact your veterinarian directly."},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -259,7 +268,13 @@ class AINoteDraftView(APIView):
             draft = json.loads(completion.choices[0].message.content or "{}")
             fields = ("chief_complaint", "examination", "assessment", "treatment_plan", "follow_up")
             return Response({field: str(draft.get(field, ""))[:2000] for field in fields})
-        except (OpenAIError, ValueError, TypeError, json.JSONDecodeError):
+        except (OpenAIError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "OpenAI note drafting failed: %s (status=%s, code=%s)",
+                type(exc).__name__,
+                getattr(exc, "status_code", None),
+                getattr(exc, "code", None),
+            )
             return Response({"detail": "AI note drafting is temporarily unavailable."}, status=status.HTTP_502_BAD_GATEWAY)
 
 
