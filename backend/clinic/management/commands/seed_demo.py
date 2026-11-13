@@ -8,15 +8,22 @@ from django.utils import timezone
 from clinic.models import Appointment, Clinic, Invoice, MedicalRecord, Pet, User
 
 
-DEMO_PASSWORD = "VetCareDemo2026!"
+DEMO_PASSWORD = settings.DEMO_PASSWORD
 
 
 class Command(BaseCommand):
     help = "Create fictional Indian clinic data and local-only demo accounts."
 
     def handle(self, *args, **options):
-        if not settings.DEBUG:
-            raise CommandError("Demo data can only be created when DEBUG is enabled.")
+        if not settings.DEBUG and not settings.ALLOW_DEMO_SEED:
+    raise CommandError(
+        "Demo seeding is disabled. Set ALLOW_DEMO_SEED=true "
+        "temporarily to enable it."
+    )
+
+if not DEMO_PASSWORD or len(DEMO_PASSWORD) < 12:
+    raise CommandError("Set a demo password of at least 12 characters.")
+
 
         with transaction.atomic():
             bengaluru, _ = Clinic.objects.update_or_create(
