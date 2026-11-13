@@ -17,8 +17,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not settings.DEBUG and not settings.ALLOW_DEMO_SEED:
     raise CommandError(
-        "Demo seeding is disabled. Set ALLOW_DEMO_SEED=true "
-        "temporarily to enable it."
+        "Demo seeding disabled. Set ALLOW_DEMO_SEED=true temporarily."
     )
 
 if not DEMO_PASSWORD or len(DEMO_PASSWORD) < 12:
