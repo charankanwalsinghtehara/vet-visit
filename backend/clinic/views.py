@@ -389,13 +389,21 @@ def demo_pay(self, request, pk=None):
 
 
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def billing_config(request):
     return Response({
-        "stripe_configured": bool(settings.STRIPE_SECRET_KEY and settings.STRIPE_WEBHOOK_SECRET),
-        "demo_mode": bool(settings.DEBUG and settings.PAYMENTS_DEMO_MODE),
+        "stripe_configured": bool(
+            settings.STRIPE_SECRET_KEY
+            and settings.STRIPE_WEBHOOK_SECRET
+        ),
+        "demo_mode": bool(
+            settings.DEMO_MODE
+            and settings.PAYMENTS_DEMO_MODE
+        ),
     })
+
 
 
 @api_view(["POST"])
