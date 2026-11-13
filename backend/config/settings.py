@@ -6,6 +6,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+ALLOW_DEMO_SEED = (
+    os.environ.get("ALLOW_DEMO_SEED", "false").lower() == "true"
+)
 PAYMENTS_DEMO_MODE = os.environ.get("PAYMENTS_DEMO_MODE", str(DEBUG)).lower() == "true"
 
 # Explicitly enabled only for a public demonstration.
