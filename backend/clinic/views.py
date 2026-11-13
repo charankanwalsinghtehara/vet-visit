@@ -348,19 +348,45 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.save(update_fields=["stripe_checkout_session_id"])
         return Response({"checkout_url": session.url})
 
-    @action(detail=True, methods=["post"], url_path="demo-pay")
-    def demo_pay(self, request, pk=None):
-        if not settings.DEBUG or not settings.PAYMENTS_DEMO_MODE:
-            return Response({"detail": "Demo payments are disabled."}, status=status.HTTP_404_NOT_FOUND)
-        invoice = self.get_object()
-        if invoice.owner_id != request.user.id:
-            raise PermissionDenied("Only the invoice owner can pay this invoice.")
-        if invoice.status != Invoice.Status.OPEN:
-            return Response({"detail": "This invoice is not open for payment."}, status=status.HTTP_400_BAD_REQUEST)
-        invoice.status = Invoice.Status.DEMO_PAID
-        invoice.paid_at = timezone.now()
-        invoice.save(update_fields=["status", "paid_at"])
-        return Response(InvoiceSerializer(invoice).data)
+    
+@action(detail=True, methods=["post"], url_path="demo-pay")
+def demo_pay(self, request, pk=None):
+
+    if not (
+        settings.DEMO_MODE
+        and settings.PAYMENTS_DEMO_MODE
+    ):
+        return Response(
+            {"detail": "Demo payments are disabled."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Only seeded demonstration accounts can use simulation.
+    if not request.user.username.startswith("demo-"):
+        raise PermissionDenied(
+            "Demo payments are available only to demo accounts."
+        )
+
+    invoice = self.get_object()
+
+    if invoice.owner_id != request.user.id:
+        raise PermissionDenied(
+            "Only the invoice owner can pay this invoice."
+        )
+
+    if invoice.status != Invoice.Status.OPEN:
+        return Response(
+            {"detail": "This invoice is not open for payment."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    invoice.status = Invoice.Status.DEMO_PAID
+    invoice.paid_at = timezone.now()
+
+    invoice.save(update_fields=["status", "paid_at"])
+
+    return Response(InvoiceSerializer(invoice).data)
+
 
 
 @api_view(["GET"])
