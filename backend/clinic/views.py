@@ -120,7 +120,19 @@ class AIStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({"available": bool(settings.OPENAI_API_KEY), "model": settings.OPENAI_MODEL})
+        configured = bool(settings.OPENAI_API_KEY)
+
+        return Response({
+            "available": configured,
+            "provider": "OpenAI",
+            "model": settings.OPENAI_MODEL,
+            "message": (
+                "AI is configured"
+                if configured
+                else "OPENAI_API_KEY is missing on the backend"
+            ),
+        })
+
 
 
 EMERGENCY_SYMPTOMS = (
