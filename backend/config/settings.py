@@ -7,6 +7,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 PAYMENTS_DEMO_MODE = os.environ.get("PAYMENTS_DEMO_MODE", str(DEBUG)).lower() == "true"
+
+# Explicitly enabled only for a public demonstration.
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
+
+# Allows the demo seed command to run once on a production deployment.
+ALLOW_DEMO_SEED = (
+    os.environ.get("ALLOW_DEMO_SEED", "false").lower() == "true"
+)
+
+DEMO_PASSWORD = os.environ.get(
+    "DEMO_PASSWORD",
+    "VetCareDemo2026!"
+)
+
+PAYMENTS_DEMO_MODE = (
+    os.environ.get("PAYMENTS_DEMO_MODE", "false").lower() == "true"
+)
+
 ALLOWED_HOSTS = [
     "vet-visit-api.onrender.com",
     "localhost",
